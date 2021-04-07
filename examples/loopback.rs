@@ -9,9 +9,9 @@ mod utils;
 use core::str;
 use log::{info, debug, error};
 
-use smoltcp::phy::Loopback;
+use smoltcp::phy::{Loopback, Medium};
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
-use smoltcp::iface::{NeighborCache, EthernetInterfaceBuilder};
+use smoltcp::iface::{NeighborCache, InterfaceBuilder};
 use smoltcp::socket::{SocketSet, TcpSocket, TcpSocketBuffer};
 use smoltcp::time::{Duration, Instant};
 
@@ -21,6 +21,7 @@ mod mock {
     use core::cell::Cell;
 
     #[derive(Debug)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct Clock(Cell<Instant>);
 
     impl Clock {
@@ -46,6 +47,7 @@ mod mock {
 
     // should be AtomicU64 but that's unstable
     #[derive(Debug, Clone)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct Clock(Arc<AtomicUsize>);
 
     impl Clock {
@@ -65,7 +67,7 @@ mod mock {
 
 fn main() {
     let clock = mock::Clock::new();
-    let device = Loopback::new();
+    let device = Loopback::new(Medium::Ethernet);
 
     #[cfg(feature = "std")]
     let device = {
@@ -83,7 +85,7 @@ fn main() {
     let mut neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
 
     let mut ip_addrs = [IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8)];
-    let mut iface = EthernetInterfaceBuilder::new(device)
+    let mut iface = InterfaceBuilder::new(device)
             .ethernet_addr(EthernetAddress::default())
             .neighbor_cache(neighbor_cache)
             .ip_addrs(ip_addrs)

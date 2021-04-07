@@ -6,10 +6,10 @@ use std as core;
 extern crate getopts;
 
 use core::cmp;
-use smoltcp::phy::Loopback;
+use smoltcp::phy::{Loopback, Medium};
 use smoltcp::wire::{EthernetAddress, EthernetFrame, EthernetProtocol};
 use smoltcp::wire::{IpAddress, IpCidr, Ipv4Packet, Ipv6Packet, TcpPacket};
-use smoltcp::iface::{NeighborCache, EthernetInterfaceBuilder};
+use smoltcp::iface::{NeighborCache, InterfaceBuilder};
 use smoltcp::socket::{SocketSet, TcpSocket, TcpSocketBuffer};
 use smoltcp::time::{Duration, Instant};
 
@@ -24,6 +24,7 @@ mod mock {
 
     // should be AtomicU64 but that's unstable
     #[derive(Debug, Clone)]
+    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct Clock(Arc<AtomicUsize>);
 
     impl Clock {
@@ -118,7 +119,7 @@ fuzz_target!(|data: &[u8]| {
         utils::add_middleware_options(&mut opts, &mut free);
 
         let mut matches = utils::parse_options(&opts, free);
-        let device = utils::parse_middleware_options(&mut matches, Loopback::new(),
+        let device = utils::parse_middleware_options(&mut matches, Loopback::new(Medium::Ethernet),
                                                      /*loopback=*/true);
 
         smoltcp::phy::FuzzInjector::new(device,
@@ -130,7 +131,7 @@ fuzz_target!(|data: &[u8]| {
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_entries[..]);
 
     let ip_addrs = [IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8)];
-    let mut iface = EthernetInterfaceBuilder::new(device)
+    let mut iface = InterfaceBuilder::new(device)
             .ethernet_addr(EthernetAddress::default())
             .neighbor_cache(neighbor_cache)
             .ip_addrs(ip_addrs)

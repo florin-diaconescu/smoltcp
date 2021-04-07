@@ -1,6 +1,6 @@
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
 #![deny(unsafe_code)]
-#![cfg_attr(all(any(feature = "proto-ipv4", feature = "proto-ipv6"), feature = "ethernet"), deny(unused))]
+#![cfg_attr(all(any(feature = "proto-ipv4", feature = "proto-ipv6"), feature = "medium-ethernet"), deny(unused))]
 
 //! The _smoltcp_ library is built in a layered structure, with the layers corresponding
 //! to the levels of API abstraction. Only the highest layers would be used by a typical
@@ -64,18 +64,13 @@
 //! feature ever defined, to ensure that, when the representation layer is unable to make sense
 //! of a packet, it is still logged correctly and in full.
 //!
-//! ## Packet and representation layer support
-//! | Protocol | Packet | Representation |
-//! |----------|--------|----------------|
-//! | Ethernet | Yes    | Yes            |
-//! | ARP      | Yes    | Yes            |
-//! | IPv4     | Yes    | Yes            |
-//! | ICMPv4   | Yes    | Yes            |
-//! | IGMPv1/2 | Yes    | Yes            |
-//! | IPv6     | Yes    | Yes            |
-//! | ICMPv6   | Yes    | Yes            |
-//! | TCP      | Yes    | Yes            |
-//! | UDP      | Yes    | Yes            |
+//! # Minimum Supported Rust Version (MSRV)
+//!
+//! This crate is guaranteed to compile on stable Rust 1.40 and up with any valid set of features.
+//! It *might* compile on older versions but that may change in any new patch release.
+//!
+//! The exception is when using the `defmt` feature, in which case `defmt`'s MSRV applies, which
+//! is higher than 1.40.
 //!
 //! [wire]: wire/index.html
 //! [osi]: https://en.wikipedia.org/wiki/OSI_model
@@ -96,6 +91,23 @@ compile_error!("at least one socket needs to be enabled"); */
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[cfg(not(any(feature = "proto-ipv4", feature = "proto-ipv6")))]
+compile_error!("You must enable at least one of the following features: proto-ipv4, proto-ipv6");
+
+#[cfg(all(
+    feature = "socket",
+    not(any(
+        feature = "socket-raw",
+        feature = "socket-udp",
+        feature = "socket-tcp",
+        feature = "socket-icmp",
+    ))
+))]
+compile_error!("If you enable the socket feature, you must enable at least one of the following features: socket-raw, socket-udp, socket-tcp, socket-icmp");
+
+#[cfg(all(feature = "defmt", feature = "log"))]
+compile_error!("You must enable at most one of the following features: defmt, log");
+
 use core::fmt;
 
 #[macro_use]
@@ -115,6 +127,7 @@ pub mod dhcp;
 /// The error type for the networking stack.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
     /// An operation cannot proceed because a buffer is empty or full.
     Exhausted,
